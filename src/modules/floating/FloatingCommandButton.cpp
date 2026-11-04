@@ -5,6 +5,7 @@
 #include <bedrocktools/memory/Signatures.hpp>
 #include <bedrocktools/sdk/Offsets.hpp>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -135,8 +136,39 @@ bool FloatingCommandButton::contains(float x, float y) const noexcept {
            y >= hudPosY && y <= hudPosY + Height;
 }
 
+void FloatingCommandButton::onDisable() {
+    std::lock_guard lock(m_mutex);
+    m_activePointer = -1;
+    m_pressed = false;
+    m_dragLikeMove = false;
+    pl::modmenu::submitDrawCommands(moduleId, {});
+    pl::modmenu::submitHudEditorElements(moduleId, {});
+}
+
 void FloatingCommandButton::onFrame() {
-    if (!enabled || !isHudModule || m_buttonName.empty() || normalizedCommand().empty()) {
+    std::lock_guard lock(m_mutex);
+    if (!enabled || !isHudModule) {
+        pl::modmenu::submitDrawCommands(moduleId, {});
+        pl::modmenu::submitHudEditorElements(moduleId, {});
+        return;
+    }
+
+    // Explicit editor bounds are needed even when no command has been set.
+    // The launcher writes dragged positions back using these config keys.
+    pl::modmenu::HudEditorElement element;
+    element.elementId = moduleId + ".button";
+    element.displayName = m_buttonName.empty() ? name : m_buttonName.substr(0, 160);
+    element.positionKeyX = "hudPosX";
+    element.positionKeyY = "hudPosY";
+    element.x = hudPosX;
+    element.y = hudPosY;
+    element.width = Width;
+    element.height = Height;
+    const std::array elements{element};
+    pl::modmenu::submitHudEditorElements(moduleId, elements);
+
+    if (m_buttonName.empty() || normalizedCommand().empty()) {
+        pl::modmenu::submitDrawCommands(moduleId, {});
         return;
     }
 
@@ -182,7 +214,8 @@ void FloatingCommandButton::onFrame() {
 }
 
 bool FloatingCommandButton::onTouchEvent(int action, int pointerId, float x, float y) {
-    if (!enabled || !isHudModule || normalizedCommand().empty()) return false;
+    std::lock_guard lock(m_mutex);
+    if (!enabled || !isHudModule || m_buttonName.empty() || normalizedCommand().empty()) return false;
 
     // Android MotionEvent values: DOWN=0, UP=1, MOVE=2, CANCEL=3.
     constexpr int ACTION_DOWN = 0;
@@ -227,6 +260,7 @@ bool FloatingCommandButton::onTouchEvent(int action, int pointerId, float x, flo
 
 void FloatingCommandButton::loadConfig(const nlohmann::json& j) {
     Module::loadConfig(j);
+    std::lock_guard lock(m_mutex);
 
     if (j.contains("buttonName")) m_buttonName = j["buttonName"].get<std::string>();
     if (j.contains("command")) m_command = j["command"].get<std::string>();
@@ -234,16 +268,19 @@ void FloatingCommandButton::loadConfig(const nlohmann::json& j) {
         m_opacity = std::clamp(j["opacity"].get<float>(), 0.05f, 1.0f);
     }
     if (j.contains("hudPosX")) {
-        hudPosX = std::clamp(j["hudPosX"].get<float>(), 0.0f, 2000.0f);
+        const float x = j["hudPosX"].get<float>();
+        if (std::isfinite(x)) hudPosX = std::clamp(x, 0.0f, 100000.0f);
     }
     if (j.contains("hudPosY")) {
-        hudPosY = std::clamp(j["hudPosY"].get<float>(), 0.0f, 2000.0f);
+        const float y = j["hudPosY"].get<float>();
+        if (std::isfinite(y)) hudPosY = std::clamp(y, 0.0f, 100000.0f);
     }
     if (j.contains("isHudModule")) isHudModule = j["isHudModule"].get<bool>();
 }
 
 void FloatingCommandButton::saveConfig(nlohmann::json& j) {
     Module::saveConfig(j);
+    std::lock_guard lock(m_mutex);
 
     j["buttonName"] = m_buttonName;
     j["command"] = m_command;

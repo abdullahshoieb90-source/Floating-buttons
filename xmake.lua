@@ -26,6 +26,7 @@ target("FloatingCommandButtons")
     add_includedirs("include", {public = true})
     add_includedirs("src", "third_party")
     add_packages("preloader", "nlohmann_json", "glm", "entt", "fmt")
+    add_defines("ENTT_PACKED_PAGE=128", "ENTT_SPARSE_PAGE=2048", {public = true})
 
     if is_plat("android") then
         add_cxflags("-fPIC", "-Oz", "-ffunction-sections", "-fdata-sections", "-flto", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-fmerge-all-constants", "-fno-stack-protector", "-fexceptions", "-w", "-fvisibility=hidden")

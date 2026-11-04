@@ -17,7 +17,7 @@ using bedrocktools::memory::SignatureId;
 
 using VersionStringFn = std::string(*)(void*);
 using NormalTickFn = void(*)(void*);
-using AttackFn = bool(*)(void*, void*, void*, void*);
+using AttackFn = bool(*)(void*, void*, bool, const void*);
 using ClientInstanceUpdateFn = void*(*)(void*, bool);
 using ScreenFn = void*(*)(void*, void*, void*, void*, void*, void*, void*, void*);
 using EglSwapBuffersFn = EGLBoolean(*)(EGLDisplay, EGLSurface);
@@ -25,7 +25,6 @@ using EglSwapBuffersFn = EGLBoolean(*)(EGLDisplay, EGLSurface);
 VersionStringFn versionOriginal = nullptr;
 NormalTickFn tickOriginal = nullptr;
 AttackFn gameModeAttackOriginal = nullptr;
-AttackFn survivalModeAttackOriginal = nullptr;
 ClientInstanceUpdateFn clientUpdateOriginal = nullptr;
 ScreenFn containerOpenOriginal = nullptr;
 ScreenFn containerCloseOriginal = nullptr;
@@ -61,19 +60,21 @@ void tickDetour(void* actor) {
     bus().publish(event);
 }
 
-bool dispatchAttack(AttackKind kind, AttackFn original, void* gameMode, void* target, void* a2, void* a3) {
-    AttackEvent event{kind, gameMode, reinterpret_cast<bedrocktools::sdk::Actor*>(target), a2, a3};
+bool gameModeAttackDetour(void* gameMode, void* target, bool playPredictiveSound, const void* hitPosition) {
+    AttackKind kind = AttackKind::GameMode;
+    const auto survivalAttack = bedrocktools::memory::resolve(SignatureId::SurvivalModeAttack);
+    if (gameMode && survivalAttack) {
+        auto** vtable = *reinterpret_cast<void***>(gameMode);
+        if (vtable && reinterpret_cast<std::uintptr_t>(vtable[16]) == survivalAttack) {
+            kind = AttackKind::SurvivalMode;
+        }
+    }
+    AttackEvent event{kind, gameMode, reinterpret_cast<bedrocktools::sdk::Actor*>(target),
+                      reinterpret_cast<void*>(static_cast<std::uintptr_t>(playPredictiveSound)),
+                      const_cast<void*>(hitPosition)};
     bus().publish(event);
     if (event.cancelled()) return false;
-    return original ? original(gameMode, target, a2, a3) : false;
-}
-
-bool gameModeAttackDetour(void* gameMode, void* target, void* a2, void* a3) {
-    return dispatchAttack(AttackKind::GameMode, gameModeAttackOriginal, gameMode, target, a2, a3);
-}
-
-bool survivalModeAttackDetour(void* gameMode, void* target, void* a2, void* a3) {
-    return dispatchAttack(AttackKind::SurvivalMode, survivalModeAttackOriginal, gameMode, target, a2, a3);
+    return gameModeAttackOriginal ? gameModeAttackOriginal(gameMode, target, playPredictiveSound, hitPosition) : false;
 }
 
 void* clientUpdateDetour(void* clientInstance, bool value) {
@@ -130,6 +131,27 @@ bool hookEgl() {
     if (handleCount < handles.size()) handles[handleCount++] = handle;
     return true;
 }
+
+// Called with installMutex held. Failed installs must not leave hooks behind:
+// Runtime may retry after a later library load.
+void removeHooks() {
+    for (std::size_t i = 0; i < handleCount; ++i) {
+        if (handles[i]) bedrocktools::hooks::remove(handles[i]);
+        handles[i] = nullptr;
+    }
+    handleCount = 0;
+    versionOriginal = nullptr;
+    tickOriginal = nullptr;
+    gameModeAttackOriginal = nullptr;
+    clientUpdateOriginal = nullptr;
+    containerOpenOriginal = nullptr;
+    containerCloseOriginal = nullptr;
+    chatOpenOriginal = nullptr;
+    chatCloseOriginal = nullptr;
+    swapBuffersOriginal = nullptr;
+    installed = false;
+    currentClientInstance.store(nullptr, std::memory_order_release);
+}
 }
 
 bool install() {
@@ -137,8 +159,7 @@ bool install() {
     if (installed) return true;
     hookSignature(SignatureId::VersionString, reinterpret_cast<void*>(versionDetour), &versionOriginal);
     hookSignature(SignatureId::NormalTick, reinterpret_cast<void*>(tickDetour), &tickOriginal);
-    hookSignature(SignatureId::GameModeAttack, reinterpret_cast<void*>(gameModeAttackDetour), &gameModeAttackOriginal);
-    hookSignature(SignatureId::SurvivalModeAttack, reinterpret_cast<void*>(survivalModeAttackDetour), &survivalModeAttackOriginal);
+    hookSignature(SignatureId::GameModeAttackInternal, reinterpret_cast<void*>(gameModeAttackDetour), &gameModeAttackOriginal);
     hookSignature(SignatureId::ClientInstanceUpdate, reinterpret_cast<void*>(clientUpdateDetour), &clientUpdateOriginal);
     hookSignature(SignatureId::ContainerScreenControllerOpen, reinterpret_cast<void*>(containerOpenDetour), &containerOpenOriginal);
     hookSignature(SignatureId::ContainerScreenControllerDtor, reinterpret_cast<void*>(containerCloseDetour), &containerCloseOriginal);
@@ -146,18 +167,13 @@ bool install() {
     hookSignature(SignatureId::ChatScreenDtor, reinterpret_cast<void*>(chatCloseDetour), &chatCloseOriginal);
     hookEgl();
     installed = tickOriginal != nullptr && clientUpdateOriginal != nullptr;
+    if (!installed) removeHooks();
     return installed;
 }
 
 void uninstall() {
     std::lock_guard lock(installMutex);
-    for (std::size_t i = 0; i < handleCount; ++i) {
-        if (handles[i]) bedrocktools::hooks::remove(handles[i]);
-        handles[i] = nullptr;
-    }
-    handleCount = 0;
-    installed = false;
-    currentClientInstance.store(nullptr, std::memory_order_release);
+    removeHooks();
 }
 
 void* clientInstance() {

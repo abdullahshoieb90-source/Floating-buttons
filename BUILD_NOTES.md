@@ -10,10 +10,12 @@ BedrockTools HUD modules use these config fields:
 - `hudPosX`
 - `hudPosY`
 
-`ModuleMenu.cpp` excludes those from ordinary settings, while the launcher HUD
-editor can use them for positioning. Each floating button is therefore a
-separate `FloatingCommandButton` module so every button has an independent
-HUD-editor position.
+`ModuleMenu.cpp` excludes those from ordinary settings. Each enabled button
+submits an explicit `HudEditorElement` with its bounds and position keys. The
+launcher HUD editor sends position changes through the module config callback,
+and the mod saves them to its config file. Each button is a separate module,
+so its position is independent. An enabled button without a command still has
+an editor element, but is not drawn or clickable during gameplay.
 
 ## Touch
 
