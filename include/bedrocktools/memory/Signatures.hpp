@@ -107,6 +107,52 @@ enum class SignatureId : std::uint16_t {
     GuiDataDisplayTextObjectWhisperMessageObject,
     GuiDataDisplayWhisperMessage,
     GuiDataAddMessage,
+    SurvivalModeStartDestroyBlock,
+    GameModeStartDestroyBlock,
+    GameModeStopDestroyBlock,
+    SurvivalModeStartBuildBlock,
+    GameModeStartBuildBlock,
+    SurvivalModeUseItem,
+    GameModeUseItem,
+    SurvivalModeUseItemAsAttack,
+    GameModeUseItemAsAttack,
+    SurvivalModeUseItemOn,
+    GameModeUseItemOn,
+    SurvivalModeInteract,
+    GameModeInteract,
+    GameModeAttackInternal,
+    LocalPlayerSwing,
+    RenderPotionEffects,
+    ItemStackBaseGetRawNameId,
+    ResourcePacksInfoPacketHandle,
+    ResourcePackStackPacketHandle,
+    BlockTessellatorTessellateDoubleThinFenceInWorld,
+    BlockGraphicsGetTexture,
+    BlockOccluderUpdateRenderFace,
+    ItemInHandRendererRenderFirstPerson,
+    MobGetModifiedSwingDuration,
+    ContainerScreenControllerHandleAutoPlace,
+    ActorGetOffhandSlot,
+    LevelGetMapSavedDataByTag,
+    LevelRequestMapInfo,
+    BlockTessellatorPipelineUseNewTessellation,
+    BlockTessellatorTessellateBlockInWorld,
+    TessellatorColorObject,
+    RenderChunkCoordinatorOnBrightnessChanged,
+    RenderChunkBuilderBuild,
+    PlayerListPacketRead,
+    MinecraftUIRenderContextDrawDebugText,
+    ItemInHandRendererRenderHand,
+    ActorRenderDispatcherRender,
+    ItemInHandRenderObject,
+    ItemInHandRendererTransformWorldMatrixFromJson,
+    ItemInHandRendererApplyDefaultItemTransforms,
+    ItemInHandRenderOffhandItem,
+    UpdatePlayerFromCamera,
+    ActorGetHeadRotation,
+    ActorSetHeadRotation,
+    NameTagThirdPersonPatch,
+    ItemInHandFirstPersonTransformPatch,
     Count
 };
 
@@ -115,6 +161,8 @@ inline constexpr std::size_t SignatureCount = static_cast<std::size_t>(Signature
 struct SignatureDefinition {
     SignatureId id;
     std::string_view pattern;
+    std::string_view rtti{};
+    std::size_t vtableSlot = 0;
 };
 
 BEDROCKTOOLS_API bool resolveAll(std::string_view libraryName = "libminecraftpe.so");

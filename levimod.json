@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "floatingcommandbuttons",
+  "version": "1.2.0",
+  "minecraft_versions": ["1.26.60.X"],
+  "info": {
+    "name": "Floating Command Buttons",
+    "author": "BedrockTools Community",
+    "description": "Ten configurable floating Minecraft command buttons.",
+    "icon": "assets/bedrocktools.png",
+    "tags": ["Utility", "HUD"]
+  },
+  "release_assets": {
+    "include": ["*.levipack", "*.so"],
+    "labels": {
+      "FloatingCommandButtons.levipack": "LeviPack",
+      "libFloatingCommandButtons.so": "Native library"
+    }
+  }
+}
