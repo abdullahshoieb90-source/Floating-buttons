@@ -18,6 +18,12 @@ jobs:
             tests/signature_resolver_test.cpp src/core/memory/Signatures.cpp -o /tmp/signature-test
           /tmp/signature-test
 
+      - name: Test HUD editor integration on host
+        run: |
+          git clone --depth 1 https://github.com/LiteLDev/preloader-android.git /tmp/preloader-src
+          git clone --depth 1 --branch v3.11.3 https://github.com/nlohmann/json.git /tmp/json-src
+          PRELOADER_SOURCE=/tmp/preloader-src JSON_SOURCE=/tmp/json-src tests/run_hud_editor_test.sh
+
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
 

@@ -15,7 +15,11 @@ Each button exposes only:
 - Opacity
 - Command
 
-The existing launcher HUD editor owns the button's position.
+Enable each button in the Mod Menu, then open the launcher's HUD Editor and
+drag it to the desired position. Positions are saved independently. Buttons
+without a command can still be positioned in the editor but are not displayed
+or clickable during gameplay. The installed launcher and preloader must support
+`submitHudEditorElements`.
 
 ## Commands
 
@@ -50,3 +54,16 @@ for the upstream MIT notice.
 The game binary is not included in this repository. Building the mod alone
 does not verify that signatures resolve on a particular APK: test the packaged
 mod with the intended 26.60 build in LeviLauncher before relying on it.
+
+## Host tests
+
+To run the HUD editor integration test, check out `preloader-android` and
+`nlohmann/json` v3.11.3, then run:
+
+```sh
+PRELOADER_SOURCE=/path/to/preloader-android JSON_SOURCE=/path/to/json \
+  tests/run_hud_editor_test.sh
+```
+
+This simulates editor callbacks and config persistence; an Android device is
+still needed to verify dragging in the actual launcher.

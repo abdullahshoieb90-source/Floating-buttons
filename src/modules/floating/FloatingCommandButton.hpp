@@ -2,6 +2,7 @@
 
 #include "../Module.hpp"
 #include <cstdint>
+#include <mutex>
 #include <string>
 
 class FloatingCommandButton final : public Module {
@@ -10,6 +11,7 @@ public:
     ~FloatingCommandButton() override = default;
 
     void onFrame() override;
+    void onDisable() override;
     bool onTouchEvent(int action, int pointerId, float x, float y) override;
     void loadConfig(const nlohmann::json& j) override;
     void saveConfig(nlohmann::json& j) override;
@@ -18,6 +20,7 @@ public:
 
 private:
     int m_slot = 1;
+    mutable std::mutex m_mutex;
 
     std::string m_buttonName;
     std::string m_command;

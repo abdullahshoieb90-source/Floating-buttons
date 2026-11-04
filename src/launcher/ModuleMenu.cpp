@@ -32,7 +32,7 @@ static void onModuleConfigChanged(std::string_view module_id, std::string_view k
 
     std::string safeValue(value);
     std::string safeKey(key);
-    if (!safeValue.empty()) {
+    if (!safeValue.empty() || (j.contains(safeKey) && j[safeKey].is_string())) {
         try {
             if (j.contains(safeKey)) {
                 if (j[safeKey].is_boolean()) {
